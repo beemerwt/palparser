@@ -1,0 +1,19 @@
+{
+  "name": "palparser-wasm",
+  "collaborators": [
+    "Brandon Woolworth <beemerwt@gmail.com>"
+  ],
+  "version": "0.1.3",
+  "files": [
+    "palparser_wasm_bg.wasm",
+    "palparser_wasm.js",
+    "palparser_wasm_bg.js",
+    "palparser_wasm.d.ts"
+  ],
+  "module": "palparser_wasm.js",
+  "types": "palparser_wasm.d.ts",
+  "sideEffects": [
+    "./palparser_wasm.js",
+    "./snippets/*"
+  ]
+}
