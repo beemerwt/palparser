@@ -1,12 +1,13 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
+* @param {Header} header
 * @param {Uint8Array} buffer
 * @param {Map<any, any> | undefined} [types]
 * @param {Function | undefined} [progress]
 * @returns {any}
 */
-export function palFromRaw(buffer: Uint8Array, types?: Map<any, any>, progress?: Function): any;
+export function palFromRaw(header: Header, buffer: Uint8Array, types?: Map<any, any>, progress?: Function): any;
 /**
 * @param {Uint8Array} buffer
 * @param {Map<any, any> | undefined} [types]

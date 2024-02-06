@@ -261,15 +261,20 @@ function addBorrowedObject(obj) {
     return stack_pointer;
 }
 /**
+* @param {Header} header
 * @param {Uint8Array} buffer
 * @param {Map<any, any> | undefined} [types]
 * @param {Function | undefined} [progress]
 * @returns {any}
 */
-export function palFromRaw(buffer, types, progress) {
+export function palFromRaw(header, buffer, types, progress) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.palFromRaw(retptr, addBorrowedObject(buffer), isLikeNone(types) ? 0 : addHeapObject(types), isLikeNone(progress) ? 0 : addHeapObject(progress));
+        _assertClass(header, Header);
+        if (header.__wbg_ptr === 0) {
+            throw new Error('Attempt to use a moved value');
+        }
+        wasm.palFromRaw(retptr, header.__wbg_ptr, addBorrowedObject(buffer), isLikeNone(types) ? 0 : addHeapObject(types), isLikeNone(progress) ? 0 : addHeapObject(progress));
         var r0 = getInt32Memory0()[retptr / 4 + 0];
         var r1 = getInt32Memory0()[retptr / 4 + 1];
         var r2 = getInt32Memory0()[retptr / 4 + 2];
