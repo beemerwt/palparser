@@ -39,7 +39,7 @@ export function __wbg_get_save_root(a: number): number;
 export function __wbg_set_save_root(a: number, b: number): void;
 export function __wbg_get_save_extra(a: number): number;
 export function __wbg_set_save_extra(a: number, b: number): void;
-export function palFromRaw(a: number, b: number, c: number, d: number, e: number): void;
+export function palFromRaw(a: number, b: number, c: number, d: number): void;
 export function deserialize(a: number, b: number, c: number, d: number): void;
 export function __wbindgen_malloc(a: number, b: number): number;
 export function __wbindgen_realloc(a: number, b: number, c: number, d: number): number;
