@@ -8,14 +8,26 @@ const heap = new Array(128).fill(undefined);
 
 heap.push(undefined, null, true, false);
 
+function getObject(idx) { return heap[idx]; }
+
 let heap_next = heap.length;
+
+function dropObject(idx) {
+    if (idx < 132) return;
+    heap[idx] = heap_next;
+    heap_next = idx;
+}
+
+function takeObject(idx) {
+    const ret = getObject(idx);
+    dropObject(idx);
+    return ret;
+}
 
 function addHeapObject(obj) {
     if (heap_next === heap.length) heap.push(heap.length + 1);
     const idx = heap_next;
     heap_next = heap[idx];
-
-    if (typeof(heap_next) !== 'number') throw new Error('corrupt heap');
 
     heap[idx] = obj;
     return idx;
@@ -41,8 +53,6 @@ function getStringFromWasm0(ptr, len) {
     return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
 }
 
-function getObject(idx) { return heap[idx]; }
-
 let WASM_VECTOR_LEN = 0;
 
 const lTextEncoder = typeof TextEncoder === 'undefined' ? (0, module.require)('util').TextEncoder : TextEncoder;
@@ -63,8 +73,6 @@ const encodeString = (typeof cachedTextEncoder.encodeInto === 'function'
 });
 
 function passStringToWasm0(arg, malloc, realloc) {
-
-    if (typeof(arg) !== 'string') throw new Error('expected a string argument');
 
     if (realloc === undefined) {
         const buf = cachedTextEncoder.encode(arg);
@@ -94,7 +102,7 @@ function passStringToWasm0(arg, malloc, realloc) {
         ptr = realloc(ptr, len, len = offset + arg.length * 3, 1) >>> 0;
         const view = getUint8Memory0().subarray(ptr + offset, ptr + len);
         const ret = encodeString(arg, view);
-        if (ret.read !== arg.length) throw new Error('failed to pass whole string');
+
         offset += ret.written;
     }
 
@@ -113,107 +121,6 @@ function getInt32Memory0() {
         cachedInt32Memory0 = new Int32Array(wasm.memory.buffer);
     }
     return cachedInt32Memory0;
-}
-
-function debugString(val) {
-    // primitive types
-    const type = typeof val;
-    if (type == 'number' || type == 'boolean' || val == null) {
-        return  `${val}`;
-    }
-    if (type == 'string') {
-        return `"${val}"`;
-    }
-    if (type == 'symbol') {
-        const description = val.description;
-        if (description == null) {
-            return 'Symbol';
-        } else {
-            return `Symbol(${description})`;
-        }
-    }
-    if (type == 'function') {
-        const name = val.name;
-        if (typeof name == 'string' && name.length > 0) {
-            return `Function(${name})`;
-        } else {
-            return 'Function';
-        }
-    }
-    // objects
-    if (Array.isArray(val)) {
-        const length = val.length;
-        let debug = '[';
-        if (length > 0) {
-            debug += debugString(val[0]);
-        }
-        for(let i = 1; i < length; i++) {
-            debug += ', ' + debugString(val[i]);
-        }
-        debug += ']';
-        return debug;
-    }
-    // Test for built-in
-    const builtInMatches = /\[object ([^\]]+)\]/.exec(toString.call(val));
-    let className;
-    if (builtInMatches.length > 1) {
-        className = builtInMatches[1];
-    } else {
-        // Failed to match the standard '[object ClassName]'
-        return toString.call(val);
-    }
-    if (className == 'Object') {
-        // we're a user defined class or Object
-        // JSON.stringify avoids problems with cycles, and is generally much
-        // easier than looping through ownProperties of `val`.
-        try {
-            return 'Object(' + JSON.stringify(val) + ')';
-        } catch (_) {
-            return 'Object';
-        }
-    }
-    // errors
-    if (val instanceof Error) {
-        return `${val.name}: ${val.message}\n${val.stack}`;
-    }
-    // TODO we could test for more things here, like `Set`s and `Map`s.
-    return className;
-}
-
-function dropObject(idx) {
-    if (idx < 132) return;
-    heap[idx] = heap_next;
-    heap_next = idx;
-}
-
-function takeObject(idx) {
-    const ret = getObject(idx);
-    dropObject(idx);
-    return ret;
-}
-
-function _assertNum(n) {
-    if (typeof(n) !== 'number') throw new Error('expected a number argument');
-}
-
-function logError(f, args) {
-    try {
-        return f.apply(this, args);
-    } catch (e) {
-        let error = (function () {
-            try {
-                return e instanceof Error ? `${e.message}\n\nStack:\n${e.stack}` : e.toString();
-            } catch(_) {
-                return "<failed to stringify thrown value>";
-            }
-        }());
-        console.error("wasm-bindgen: imported JS function that was not marked as `catch` threw an error:", error);
-        throw e;
-    }
-}
-
-function _assertBigInt(n) {
-    if (typeof(n) !== 'bigint') throw new Error('expected a bigint argument');
 }
 
 let cachedUint32Memory0 = null;
@@ -287,7 +194,7 @@ export function palFromRaw(buffer, types, progress) {
 * @param {Uint8Array} buffer
 * @param {Map<any, any> | undefined} [types]
 * @param {Function | undefined} [progress]
-* @returns {Save}
+* @returns {any}
 */
 export function deserialize(buffer, types, progress) {
     try {
@@ -299,7 +206,7 @@ export function deserialize(buffer, types, progress) {
         if (r2) {
             throw takeObject(r1);
         }
-        return Save.__wrap(r0);
+        return takeObject(r0);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
         heap[stack_pointer++] = undefined;
@@ -313,19 +220,13 @@ function handleError(f, args) {
         wasm.__wbindgen_exn_store(addHeapObject(e));
     }
 }
-function __wbg_adapter_80(arg0, arg1, arg2, arg3) {
-    _assertNum(arg0);
-    _assertNum(arg1);
-    wasm.wasm_bindgen__convert__closures__invoke2_mut__h2d313c10a4b829d9(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
+function __wbg_adapter_78(arg0, arg1, arg2, arg3) {
+    wasm.wasm_bindgen__convert__closures__invoke2_mut__h34ac7534ab213db2(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
 /**
 */
 export class CustomFormatData {
-
-    constructor() {
-        throw new Error('cannot invoke `new` directly');
-    }
 
     static __wrap(ptr) {
         ptr = ptr >>> 0;
@@ -360,9 +261,7 @@ export class CustomFormatData {
         let deferred1_0;
         let deferred1_1;
         try {
-            if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            _assertNum(this.__wbg_ptr);
             wasm.__wbg_get_customformatdata_id(retptr, this.__wbg_ptr);
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
@@ -378,8 +277,6 @@ export class CustomFormatData {
     * @param {string} arg0
     */
     set id(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ptr0 = passStringToWasm0(arg0, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         wasm.__wbg_set_customformatdata_id(this.__wbg_ptr, ptr0, len0);
@@ -388,8 +285,6 @@ export class CustomFormatData {
     * @returns {number}
     */
     get value() {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ret = wasm.__wbg_get_customformatdata_value(this.__wbg_ptr);
         return ret;
     }
@@ -397,19 +292,12 @@ export class CustomFormatData {
     * @param {number} arg0
     */
     set value(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
-        _assertNum(arg0);
         wasm.__wbg_set_customformatdata_value(this.__wbg_ptr, arg0);
     }
 }
 /**
 */
 export class Header {
-
-    constructor() {
-        throw new Error('cannot invoke `new` directly');
-    }
 
     static __wrap(ptr) {
         ptr = ptr >>> 0;
@@ -434,8 +322,6 @@ export class Header {
     * @returns {number}
     */
     get magic() {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ret = wasm.__wbg_get_header_magic(this.__wbg_ptr);
         return ret >>> 0;
     }
@@ -443,17 +329,12 @@ export class Header {
     * @param {number} arg0
     */
     set magic(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
-        _assertNum(arg0);
         wasm.__wbg_set_header_magic(this.__wbg_ptr, arg0);
     }
     /**
     * @returns {number}
     */
     get save_game_version() {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ret = wasm.__wbg_get_header_save_game_version(this.__wbg_ptr);
         return ret >>> 0;
     }
@@ -461,17 +342,12 @@ export class Header {
     * @param {number} arg0
     */
     set save_game_version(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
-        _assertNum(arg0);
         wasm.__wbg_set_header_save_game_version(this.__wbg_ptr, arg0);
     }
     /**
     * @returns {bigint}
     */
     get package_version() {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ret = wasm.__wbg_get_header_package_version(this.__wbg_ptr);
         return BigInt.asUintN(64, ret);
     }
@@ -479,17 +355,12 @@ export class Header {
     * @param {bigint} arg0
     */
     set package_version(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
-        _assertBigInt(arg0);
         wasm.__wbg_set_header_package_version(this.__wbg_ptr, arg0);
     }
     /**
     * @returns {number}
     */
     get engine_version_major() {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ret = wasm.__wbg_get_header_engine_version_major(this.__wbg_ptr);
         return ret;
     }
@@ -497,17 +368,12 @@ export class Header {
     * @param {number} arg0
     */
     set engine_version_major(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
-        _assertNum(arg0);
         wasm.__wbg_set_header_engine_version_major(this.__wbg_ptr, arg0);
     }
     /**
     * @returns {number}
     */
     get engine_version_minor() {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ret = wasm.__wbg_get_header_engine_version_minor(this.__wbg_ptr);
         return ret;
     }
@@ -515,17 +381,12 @@ export class Header {
     * @param {number} arg0
     */
     set engine_version_minor(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
-        _assertNum(arg0);
         wasm.__wbg_set_header_engine_version_minor(this.__wbg_ptr, arg0);
     }
     /**
     * @returns {number}
     */
     get engine_version_patch() {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ret = wasm.__wbg_get_header_engine_version_patch(this.__wbg_ptr);
         return ret;
     }
@@ -533,17 +394,12 @@ export class Header {
     * @param {number} arg0
     */
     set engine_version_patch(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
-        _assertNum(arg0);
         wasm.__wbg_set_header_engine_version_patch(this.__wbg_ptr, arg0);
     }
     /**
     * @returns {number}
     */
     get engine_version_build() {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ret = wasm.__wbg_get_header_engine_version_build(this.__wbg_ptr);
         return ret >>> 0;
     }
@@ -551,9 +407,6 @@ export class Header {
     * @param {number} arg0
     */
     set engine_version_build(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
-        _assertNum(arg0);
         wasm.__wbg_set_header_engine_version_build(this.__wbg_ptr, arg0);
     }
     /**
@@ -563,9 +416,7 @@ export class Header {
         let deferred1_0;
         let deferred1_1;
         try {
-            if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            _assertNum(this.__wbg_ptr);
             wasm.__wbg_get_header_engine_version(retptr, this.__wbg_ptr);
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
@@ -581,8 +432,6 @@ export class Header {
     * @param {string} arg0
     */
     set engine_version(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ptr0 = passStringToWasm0(arg0, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         wasm.__wbg_set_header_engine_version(this.__wbg_ptr, ptr0, len0);
@@ -591,8 +440,6 @@ export class Header {
     * @returns {number}
     */
     get custom_format_version() {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ret = wasm.__wbg_get_header_custom_format_version(this.__wbg_ptr);
         return ret >>> 0;
     }
@@ -600,9 +447,6 @@ export class Header {
     * @param {number} arg0
     */
     set custom_format_version(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
-        _assertNum(arg0);
         wasm.__wbg_set_header_custom_format_version(this.__wbg_ptr, arg0);
     }
     /**
@@ -610,9 +454,7 @@ export class Header {
     */
     get custom_format() {
         try {
-            if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            _assertNum(this.__wbg_ptr);
             wasm.__wbg_get_header_custom_format(retptr, this.__wbg_ptr);
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
@@ -627,8 +469,6 @@ export class Header {
     * @param {(CustomFormatData)[]} arg0
     */
     set custom_format(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ptr0 = passArrayJsValueToWasm0(arg0, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
         wasm.__wbg_set_header_custom_format(this.__wbg_ptr, ptr0, len0);
@@ -638,10 +478,6 @@ export class Header {
 * Root struct inside a save file which holds both the Unreal Engine class name and list of properties
 */
 export class Root {
-
-    constructor() {
-        throw new Error('cannot invoke `new` directly');
-    }
 
     static __wrap(ptr) {
         ptr = ptr >>> 0;
@@ -669,10 +505,8 @@ export class Root {
         let deferred1_0;
         let deferred1_1;
         try {
-            if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            _assertNum(this.__wbg_ptr);
-            wasm.__wbg_get_root_SaveGameType(retptr, this.__wbg_ptr);
+            wasm.__wbg_get_customformatdata_id(retptr, this.__wbg_ptr);
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             deferred1_0 = r0;
@@ -687,18 +521,14 @@ export class Root {
     * @param {string} arg0
     */
     set SaveGameType(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ptr0 = passStringToWasm0(arg0, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
-        wasm.__wbg_set_root_SaveGameType(this.__wbg_ptr, ptr0, len0);
+        wasm.__wbg_set_customformatdata_id(this.__wbg_ptr, ptr0, len0);
     }
     /**
     * @returns {Map<any, any>}
     */
     get worldSaveData() {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ret = wasm.__wbg_get_root_worldSaveData(this.__wbg_ptr);
         return takeObject(ret);
     }
@@ -706,26 +536,12 @@ export class Root {
     * @param {Map<any, any>} arg0
     */
     set worldSaveData(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         wasm.__wbg_set_root_worldSaveData(this.__wbg_ptr, addHeapObject(arg0));
     }
 }
 /**
 */
 export class Save {
-
-    constructor() {
-        throw new Error('cannot invoke `new` directly');
-    }
-
-    static __wrap(ptr) {
-        ptr = ptr >>> 0;
-        const obj = Object.create(Save.prototype);
-        obj.__wbg_ptr = ptr;
-
-        return obj;
-    }
 
     __destroy_into_raw() {
         const ptr = this.__wbg_ptr;
@@ -742,8 +558,6 @@ export class Save {
     * @returns {Header}
     */
     get header() {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ret = wasm.__wbg_get_save_header(this.__wbg_ptr);
         return Header.__wrap(ret);
     }
@@ -751,12 +565,7 @@ export class Save {
     * @param {Header} arg0
     */
     set header(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         _assertClass(arg0, Header);
-        if (arg0.__wbg_ptr === 0) {
-            throw new Error('Attempt to use a moved value');
-        }
         var ptr0 = arg0.__destroy_into_raw();
         wasm.__wbg_set_save_header(this.__wbg_ptr, ptr0);
     }
@@ -764,8 +573,6 @@ export class Save {
     * @returns {Root}
     */
     get root() {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ret = wasm.__wbg_get_save_root(this.__wbg_ptr);
         return Root.__wrap(ret);
     }
@@ -773,12 +580,7 @@ export class Save {
     * @param {Root} arg0
     */
     set root(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         _assertClass(arg0, Root);
-        if (arg0.__wbg_ptr === 0) {
-            throw new Error('Attempt to use a moved value');
-        }
         var ptr0 = arg0.__destroy_into_raw();
         wasm.__wbg_set_save_root(this.__wbg_ptr, ptr0);
     }
@@ -786,8 +588,6 @@ export class Save {
     * @returns {Array<any>}
     */
     get extra() {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         const ret = wasm.__wbg_get_save_extra(this.__wbg_ptr);
         return takeObject(ret);
     }
@@ -795,19 +595,41 @@ export class Save {
     * @param {Array<any>} arg0
     */
     set extra(arg0) {
-        if (this.__wbg_ptr == 0) throw new Error('Attempt to use a moved value');
-        _assertNum(this.__wbg_ptr);
         wasm.__wbg_set_save_extra(this.__wbg_ptr, addHeapObject(arg0));
     }
 }
+
+export function __wbindgen_object_drop_ref(arg0) {
+    takeObject(arg0);
+};
+
+export function __wbindgen_bigint_from_u64(arg0) {
+    const ret = BigInt.asUintN(64, arg0);
+    return addHeapObject(ret);
+};
+
+export function __wbindgen_string_new(arg0, arg1) {
+    const ret = getStringFromWasm0(arg0, arg1);
+    return addHeapObject(ret);
+};
 
 export function __wbindgen_number_new(arg0) {
     const ret = arg0;
     return addHeapObject(ret);
 };
 
-export function __wbindgen_string_new(arg0, arg1) {
-    const ret = getStringFromWasm0(arg0, arg1);
+export function __wbindgen_bigint_from_i64(arg0) {
+    const ret = arg0;
+    return addHeapObject(ret);
+};
+
+export function __wbg_customformatdata_unwrap(arg0) {
+    const ret = CustomFormatData.__unwrap(takeObject(arg0));
+    return ret;
+};
+
+export function __wbindgen_object_clone_ref(arg0) {
+    const ret = getObject(arg0);
     return addHeapObject(ret);
 };
 
@@ -820,41 +642,33 @@ export function __wbindgen_string_get(arg0, arg1) {
     getInt32Memory0()[arg0 / 4 + 0] = ptr1;
 };
 
-export function __wbindgen_object_clone_ref(arg0) {
-    const ret = getObject(arg0);
-    return addHeapObject(ret);
+export function __wbg_log_71c4aa666c112e27(arg0, arg1) {
+    console.log(getStringFromWasm0(arg0, arg1));
 };
 
-export function __wbindgen_bigint_from_i64(arg0) {
-    const ret = arg0;
-    return addHeapObject(ret);
+export function __wbg_error_43938f09c9cb8cba(arg0, arg1) {
+    console.error(getStringFromWasm0(arg0, arg1));
 };
 
-export function __wbindgen_bigint_from_u64(arg0) {
-    const ret = BigInt.asUintN(64, arg0);
-    return addHeapObject(ret);
-};
-
-export function __wbg_customformatdata_new() { return logError(function (arg0) {
+export function __wbg_customformatdata_new(arg0) {
     const ret = CustomFormatData.__wrap(arg0);
     return addHeapObject(ret);
-}, arguments) };
+};
 
-export function __wbg_customformatdata_unwrap() { return logError(function (arg0) {
-    const ret = CustomFormatData.__unwrap(takeObject(arg0));
-    _assertNum(ret);
-    return ret;
-}, arguments) };
+export function __wbg_new_abda76e883ba8a5f() {
+    const ret = new Error();
+    return addHeapObject(ret);
+};
 
-export function __wbg_error_43938f09c9cb8cba() { return logError(function (arg0, arg1) {
-    console.error(getStringFromWasm0(arg0, arg1));
-}, arguments) };
+export function __wbg_stack_658279fe44541cf6(arg0, arg1) {
+    const ret = getObject(arg1).stack;
+    const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    getInt32Memory0()[arg0 / 4 + 1] = len1;
+    getInt32Memory0()[arg0 / 4 + 0] = ptr1;
+};
 
-export function __wbg_log_71c4aa666c112e27() { return logError(function (arg0, arg1) {
-    console.log(getStringFromWasm0(arg0, arg1));
-}, arguments) };
-
-export function __wbg_error_f851667af71bcfc6() { return logError(function (arg0, arg1) {
+export function __wbg_error_f851667af71bcfc6(arg0, arg1) {
     let deferred0_0;
     let deferred0_1;
     try {
@@ -864,54 +678,45 @@ export function __wbg_error_f851667af71bcfc6() { return logError(function (arg0,
     } finally {
         wasm.__wbindgen_free(deferred0_0, deferred0_1, 1);
     }
-}, arguments) };
+};
 
-export function __wbg_new_abda76e883ba8a5f() { return logError(function () {
-    const ret = new Error();
-    return addHeapObject(ret);
-}, arguments) };
-
-export function __wbg_stack_658279fe44541cf6() { return logError(function (arg0, arg1) {
-    const ret = getObject(arg1).stack;
-    const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len1 = WASM_VECTOR_LEN;
-    getInt32Memory0()[arg0 / 4 + 1] = len1;
-    getInt32Memory0()[arg0 / 4 + 0] = ptr1;
-}, arguments) };
-
-export function __wbg_new_34c624469fb1d4fd() { return logError(function () {
+export function __wbg_new_34c624469fb1d4fd() {
     const ret = new Array();
     return addHeapObject(ret);
-}, arguments) };
+};
 
-export function __wbg_newwithlength_6f9d90ee462acc16() { return logError(function (arg0) {
+export function __wbg_new_ad4df4628315a892() {
+    const ret = new Map();
+    return addHeapObject(ret);
+};
+
+export function __wbg_newwithlength_6f9d90ee462acc16(arg0) {
     const ret = new Array(arg0 >>> 0);
     return addHeapObject(ret);
-}, arguments) };
+};
 
-export function __wbg_set_379b27f1d5f1bf9c() { return logError(function (arg0, arg1, arg2) {
+export function __wbg_set_379b27f1d5f1bf9c(arg0, arg1, arg2) {
     getObject(arg0)[arg1 >>> 0] = takeObject(arg2);
-}, arguments) };
+};
 
-export function __wbg_push_906164999551d793() { return logError(function (arg0, arg1) {
+export function __wbg_push_906164999551d793(arg0, arg1) {
     const ret = getObject(arg0).push(getObject(arg1));
-    _assertNum(ret);
     return ret;
-}, arguments) };
+};
 
 export function __wbg_call_f6a2bc58c19c53c6() { return handleError(function (arg0, arg1, arg2) {
     const ret = getObject(arg0).call(getObject(arg1), getObject(arg2));
     return addHeapObject(ret);
 }, arguments) };
 
-export function __wbg_forEach_5d4bb1e230176e0e() { return logError(function (arg0, arg1, arg2) {
+export function __wbg_forEach_5d4bb1e230176e0e(arg0, arg1, arg2) {
     try {
         var state0 = {a: arg1, b: arg2};
         var cb0 = (arg0, arg1) => {
             const a = state0.a;
             state0.a = 0;
             try {
-                return __wbg_adapter_80(a, state0.b, arg0, arg1);
+                return __wbg_adapter_78(a, state0.b, arg0, arg1);
             } finally {
                 state0.a = a;
             }
@@ -920,58 +725,40 @@ export function __wbg_forEach_5d4bb1e230176e0e() { return logError(function (arg
     } finally {
         state0.a = state0.b = 0;
     }
-}, arguments) };
+};
 
-export function __wbg_new_ad4df4628315a892() { return logError(function () {
-    const ret = new Map();
-    return addHeapObject(ret);
-}, arguments) };
-
-export function __wbg_set_83e83bc2428e50ab() { return logError(function (arg0, arg1, arg2) {
+export function __wbg_set_83e83bc2428e50ab(arg0, arg1, arg2) {
     const ret = getObject(arg0).set(getObject(arg1), getObject(arg2));
     return addHeapObject(ret);
-}, arguments) };
+};
 
 export function __wbg_fromEntries_dd0490602503ea2e() { return handleError(function (arg0) {
     const ret = Object.fromEntries(getObject(arg0));
     return addHeapObject(ret);
 }, arguments) };
 
-export function __wbg_concat_b8781bec979daac0() { return logError(function (arg0, arg1) {
+export function __wbg_concat_b8781bec979daac0(arg0, arg1) {
     const ret = getObject(arg0).concat(getObject(arg1));
     return addHeapObject(ret);
-}, arguments) };
-
-export function __wbg_new_ace717933ad7117f() { return logError(function (arg0) {
-    const ret = new Uint8Array(getObject(arg0));
-    return addHeapObject(ret);
-}, arguments) };
-
-export function __wbg_length_f0764416ba5bb237() { return logError(function (arg0) {
-    const ret = getObject(arg0).length;
-    _assertNum(ret);
-    return ret;
-}, arguments) };
-
-export function __wbg_set_74906aa30864df5a() { return logError(function (arg0, arg1, arg2) {
-    getObject(arg0).set(getObject(arg1), arg2 >>> 0);
-}, arguments) };
-
-export function __wbg_buffer_5d1b598a01b41a42() { return logError(function (arg0) {
-    const ret = getObject(arg0).buffer;
-    return addHeapObject(ret);
-}, arguments) };
-
-export function __wbindgen_debug_string(arg0, arg1) {
-    const ret = debugString(getObject(arg1));
-    const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len1 = WASM_VECTOR_LEN;
-    getInt32Memory0()[arg0 / 4 + 1] = len1;
-    getInt32Memory0()[arg0 / 4 + 0] = ptr1;
 };
 
-export function __wbindgen_object_drop_ref(arg0) {
-    takeObject(arg0);
+export function __wbg_buffer_5d1b598a01b41a42(arg0) {
+    const ret = getObject(arg0).buffer;
+    return addHeapObject(ret);
+};
+
+export function __wbg_new_ace717933ad7117f(arg0) {
+    const ret = new Uint8Array(getObject(arg0));
+    return addHeapObject(ret);
+};
+
+export function __wbg_set_74906aa30864df5a(arg0, arg1, arg2) {
+    getObject(arg0).set(getObject(arg1), arg2 >>> 0);
+};
+
+export function __wbg_length_f0764416ba5bb237(arg0) {
+    const ret = getObject(arg0).length;
+    return ret;
 };
 
 export function __wbindgen_throw(arg0, arg1) {

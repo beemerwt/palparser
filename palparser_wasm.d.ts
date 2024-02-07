@@ -11,9 +11,9 @@ export function palFromRaw(buffer: Uint8Array, types?: Map<any, any>, progress?:
 * @param {Uint8Array} buffer
 * @param {Map<any, any> | undefined} [types]
 * @param {Function | undefined} [progress]
-* @returns {Save}
+* @returns {any}
 */
-export function deserialize(buffer: Uint8Array, types?: Map<any, any>, progress?: Function): Save;
+export function deserialize(buffer: Uint8Array, types?: Map<any, any>, progress?: Function): any;
 /**
 */
 export class CustomFormatData {
