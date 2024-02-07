@@ -123,71 +123,6 @@ function getInt32Memory0() {
     return cachedInt32Memory0;
 }
 
-function debugString(val) {
-    // primitive types
-    const type = typeof val;
-    if (type == 'number' || type == 'boolean' || val == null) {
-        return  `${val}`;
-    }
-    if (type == 'string') {
-        return `"${val}"`;
-    }
-    if (type == 'symbol') {
-        const description = val.description;
-        if (description == null) {
-            return 'Symbol';
-        } else {
-            return `Symbol(${description})`;
-        }
-    }
-    if (type == 'function') {
-        const name = val.name;
-        if (typeof name == 'string' && name.length > 0) {
-            return `Function(${name})`;
-        } else {
-            return 'Function';
-        }
-    }
-    // objects
-    if (Array.isArray(val)) {
-        const length = val.length;
-        let debug = '[';
-        if (length > 0) {
-            debug += debugString(val[0]);
-        }
-        for(let i = 1; i < length; i++) {
-            debug += ', ' + debugString(val[i]);
-        }
-        debug += ']';
-        return debug;
-    }
-    // Test for built-in
-    const builtInMatches = /\[object ([^\]]+)\]/.exec(toString.call(val));
-    let className;
-    if (builtInMatches.length > 1) {
-        className = builtInMatches[1];
-    } else {
-        // Failed to match the standard '[object ClassName]'
-        return toString.call(val);
-    }
-    if (className == 'Object') {
-        // we're a user defined class or Object
-        // JSON.stringify avoids problems with cycles, and is generally much
-        // easier than looping through ownProperties of `val`.
-        try {
-            return 'Object(' + JSON.stringify(val) + ')';
-        } catch (_) {
-            return 'Object';
-        }
-    }
-    // errors
-    if (val instanceof Error) {
-        return `${val.name}: ${val.message}\n${val.stack}`;
-    }
-    // TODO we could test for more things here, like `Set`s and `Map`s.
-    return className;
-}
-
 let cachedUint32Memory0 = null;
 
 function getUint32Memory0() {
@@ -233,7 +168,7 @@ function addBorrowedObject(obj) {
     return stack_pointer;
 }
 /**
-* @param {Buffer} data
+* @param {Uint8Array} data
 * @param {Map<any, any> | undefined} [types]
 * @param {Function | undefined} [progress]
 * @returns {any}
@@ -241,8 +176,7 @@ function addBorrowedObject(obj) {
 export function palFromRaw(data, types, progress) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        _assertClass(data, Buffer);
-        wasm.palFromRaw(retptr, data.__wbg_ptr, isLikeNone(types) ? 0 : addHeapObject(types), isLikeNone(progress) ? 0 : addHeapObject(progress));
+        wasm.palFromRaw(retptr, addBorrowedObject(data), isLikeNone(types) ? 0 : addHeapObject(types), isLikeNone(progress) ? 0 : addHeapObject(progress));
         var r0 = getInt32Memory0()[retptr / 4 + 0];
         var r1 = getInt32Memory0()[retptr / 4 + 1];
         var r2 = getInt32Memory0()[retptr / 4 + 2];
@@ -252,6 +186,7 @@ export function palFromRaw(data, types, progress) {
         return takeObject(r0);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
+        heap[stack_pointer++] = undefined;
     }
 }
 
@@ -285,39 +220,10 @@ function handleError(f, args) {
         wasm.__wbindgen_exn_store(addHeapObject(e));
     }
 }
-function __wbg_adapter_81(arg0, arg1, arg2, arg3) {
+function __wbg_adapter_78(arg0, arg1, arg2, arg3) {
     wasm.wasm_bindgen__convert__closures__invoke2_mut__h34ac7534ab213db2(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
-/**
-*/
-export class Buffer {
-
-    __destroy_into_raw() {
-        const ptr = this.__wbg_ptr;
-        this.__wbg_ptr = 0;
-
-        return ptr;
-    }
-
-    free() {
-        const ptr = this.__destroy_into_raw();
-        wasm.__wbg_buffer_free(ptr);
-    }
-    /**
-    * @param {number} byte_length
-    * @param {Function} f
-    */
-    constructor(byte_length, f) {
-        try {
-            const ret = wasm.buffer_new(byte_length, addBorrowedObject(f));
-            this.__wbg_ptr = ret >>> 0;
-            return this;
-        } finally {
-            heap[stack_pointer++] = undefined;
-        }
-    }
-}
 /**
 */
 export class CustomFormatData {
@@ -810,7 +716,7 @@ export function __wbg_forEach_5d4bb1e230176e0e(arg0, arg1, arg2) {
             const a = state0.a;
             state0.a = 0;
             try {
-                return __wbg_adapter_81(a, state0.b, arg0, arg1);
+                return __wbg_adapter_78(a, state0.b, arg0, arg1);
             } finally {
                 state0.a = a;
             }
@@ -841,11 +747,6 @@ export function __wbg_buffer_5d1b598a01b41a42(arg0) {
     return addHeapObject(ret);
 };
 
-export function __wbg_newwithbyteoffsetandlength_d695c7957788f922(arg0, arg1, arg2) {
-    const ret = new Uint8Array(getObject(arg0), arg1 >>> 0, arg2 >>> 0);
-    return addHeapObject(ret);
-};
-
 export function __wbg_new_ace717933ad7117f(arg0) {
     const ret = new Uint8Array(getObject(arg0));
     return addHeapObject(ret);
@@ -858,14 +759,6 @@ export function __wbg_set_74906aa30864df5a(arg0, arg1, arg2) {
 export function __wbg_length_f0764416ba5bb237(arg0) {
     const ret = getObject(arg0).length;
     return ret;
-};
-
-export function __wbindgen_debug_string(arg0, arg1) {
-    const ret = debugString(getObject(arg1));
-    const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len1 = WASM_VECTOR_LEN;
-    getInt32Memory0()[arg0 / 4 + 1] = len1;
-    getInt32Memory0()[arg0 / 4 + 0] = ptr1;
 };
 
 export function __wbindgen_throw(arg0, arg1) {

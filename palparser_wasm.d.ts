@@ -1,12 +1,12 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
-* @param {Buffer} data
+* @param {Uint8Array} data
 * @param {Map<any, any> | undefined} [types]
 * @param {Function | undefined} [progress]
 * @returns {any}
 */
-export function palFromRaw(data: Buffer, types?: Map<any, any>, progress?: Function): any;
+export function palFromRaw(data: Uint8Array, types?: Map<any, any>, progress?: Function): any;
 /**
 * @param {Uint8Array} buffer
 * @param {Map<any, any> | undefined} [types]
@@ -14,16 +14,6 @@ export function palFromRaw(data: Buffer, types?: Map<any, any>, progress?: Funct
 * @returns {any}
 */
 export function deserialize(buffer: Uint8Array, types?: Map<any, any>, progress?: Function): any;
-/**
-*/
-export class Buffer {
-  free(): void;
-/**
-* @param {number} byte_length
-* @param {Function} f
-*/
-  constructor(byte_length: number, f: Function);
-}
 /**
 */
 export class CustomFormatData {
